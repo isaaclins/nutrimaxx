@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 enum Format {
     /// Whole kcal, no decimals: 2415 -> "2415".
@@ -44,6 +45,27 @@ struct ComingSoonModifier: ViewModifier {
 extension View {
     func comingSoon(_ isPresented: Binding<Bool>) -> some View {
         modifier(ComingSoonModifier(isPresented: isPresented))
+    }
+
+    /// Adds a "Done" button above the keyboard so numeric-pad inputs (which have
+    /// no return key) can always be dismissed.
+    func keyboardDoneToolbar() -> some View {
+        modifier(KeyboardDoneToolbar())
+    }
+}
+
+/// Toolbar with a trailing Done button shown whenever the keyboard is up.
+struct KeyboardDoneToolbar: ViewModifier {
+    func body(content: Content) -> some View {
+        content.toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") {
+                    UIApplication.shared.sendAction(
+                        #selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                }
+            }
+        }
     }
 }
 

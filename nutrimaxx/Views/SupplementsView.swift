@@ -124,6 +124,7 @@ struct SupplementEditorView: View {
             }
             .navigationTitle(existing == nil ? "New Supplement" : "Edit Supplement")
             .navigationBarTitleDisplayMode(.inline)
+            .keyboardDoneToolbar()
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { save() }

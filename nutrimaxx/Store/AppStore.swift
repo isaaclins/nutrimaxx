@@ -17,7 +17,7 @@ final class AppStore: ObservableObject {
     /// Currently viewed day (not persisted). Dashboard and Log follow this.
     @Published var selectedDate: Date = Calendar.current.startOfDay(for: Date())
 
-    private let defaultsKey = "nutrimaxx.state.v4"
+    private let defaultsKey = "nutrimaxx.state.v5"
 
     init() {
         if let saved = Self.load() {
@@ -179,7 +179,7 @@ final class AppStore: ObservableObject {
     }
 
     private static func load() -> Snapshot? {
-        guard let data = UserDefaults.standard.data(forKey: "nutrimaxx.state.v4"),
+        guard let data = UserDefaults.standard.data(forKey: "nutrimaxx.state.v5"),
               let snap = try? JSONDecoder().decode(Snapshot.self, from: data) else { return nil }
         return snap
     }

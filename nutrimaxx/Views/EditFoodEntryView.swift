@@ -80,6 +80,7 @@ struct EditFoodEntryView: View {
             }
             .navigationTitle("Edit Food")
             .navigationBarTitleDisplayMode(.inline)
+            .keyboardDoneToolbar()
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {

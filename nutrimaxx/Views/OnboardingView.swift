@@ -12,7 +12,6 @@ struct OnboardingView: View {
     @State private var goals = Goals()
 
     // Text fields for numeric metric entry.
-    @State private var ageText = "30"
     @State private var heightText = "175"
     @State private var weightText = "75"
 
@@ -30,6 +29,7 @@ struct OnboardingView: View {
             .padding()
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
+            .keyboardDoneToolbar()
         }
     }
 
@@ -74,7 +74,8 @@ struct OnboardingView: View {
                 Picker("Sex", selection: $metrics.sex) {
                     ForEach(BiologicalSex.allCases) { Text($0.rawValue).tag($0) }
                 }
-                numberRow("Age", $ageText, unit: "yr")
+                DatePicker("Birthday", selection: $metrics.birthday,
+                           in: ...Date(), displayedComponents: .date)
                 numberRow("Height", $heightText, unit: "cm")
                 numberRow("Weight", $weightText, unit: "kg")
                 Picker("Activity", selection: $metrics.activity) {
@@ -191,7 +192,6 @@ struct OnboardingView: View {
     }
 
     private func commitMetrics() {
-        metrics.age = Int(ageText) ?? metrics.age
         metrics.heightCm = Double(heightText) ?? metrics.heightCm
         metrics.weightKg = Double(weightText) ?? metrics.weightKg
     }

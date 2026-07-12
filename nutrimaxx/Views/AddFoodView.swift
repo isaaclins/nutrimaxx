@@ -54,6 +54,7 @@ struct AddFoodView: View {
             }
             .navigationTitle("Add to \(meal.rawValue.capitalized)")
             .navigationBarTitleDisplayMode(.inline)
+            .keyboardDoneToolbar()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -138,6 +139,7 @@ struct LogAmountView: View {
             }
             .navigationTitle("Log Food")
             .navigationBarTitleDisplayMode(.inline)
+            .keyboardDoneToolbar()
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Add") {

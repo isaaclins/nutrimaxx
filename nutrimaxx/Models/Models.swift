@@ -148,11 +148,21 @@ enum ActivityLevel: String, Codable, CaseIterable, Identifiable {
 
 /// Body metrics used to estimate calorie and macro targets.
 struct UserMetrics: Codable, Hashable {
-    var age: Int = 30
+    var birthday: Date = UserMetrics.defaultBirthday
     var sex: BiologicalSex = .male
     var heightCm: Double = 175
     var weightKg: Double = 75
     var activity: ActivityLevel = .moderate
+
+    /// Default birthday: 30 years ago from today.
+    static var defaultBirthday: Date {
+        Calendar.current.date(byAdding: .year, value: -30, to: Date()) ?? Date()
+    }
+
+    /// Age in whole years, derived from the birthday so it stays current.
+    var age: Int {
+        Calendar.current.dateComponents([.year], from: birthday, to: Date()).year ?? 0
+    }
 
     /// Basal metabolic rate via the Mifflin-St Jeor equation.
     var bmr: Double {

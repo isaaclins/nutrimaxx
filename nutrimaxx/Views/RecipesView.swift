@@ -165,6 +165,7 @@ struct RecipeEditorView: View {
             }
             .navigationTitle(existing == nil ? "New Recipe" : "Edit Recipe")
             .navigationBarTitleDisplayMode(.inline)
+            .keyboardDoneToolbar()
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {

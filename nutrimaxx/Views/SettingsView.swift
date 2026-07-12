@@ -15,6 +15,7 @@ struct SettingsView: View {
                 about
             }
             .navigationTitle("Settings")
+            .keyboardDoneToolbar()
         }
         .task {
             if store.appleHealthConnected {
@@ -60,7 +61,9 @@ struct SettingsView: View {
             Picker("Sex", selection: $store.metrics.sex) {
                 ForEach(BiologicalSex.allCases) { Text($0.rawValue).tag($0) }
             }
-            Stepper("Age: \(store.metrics.age) yr", value: $store.metrics.age, in: 13...100)
+            DatePicker("Birthday", selection: $store.metrics.birthday,
+                       in: ...Date(), displayedComponents: .date)
+            LabeledContent("Age", value: "\(store.metrics.age) yr")
             metricField("Height", $store.metrics.heightCm, unit: "cm")
             metricField("Weight", $store.metrics.weightKg, unit: "kg")
             Picker("Activity", selection: $store.metrics.activity) {
