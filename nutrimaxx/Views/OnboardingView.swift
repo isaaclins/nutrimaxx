@@ -27,6 +27,8 @@ struct OnboardingView: View {
                 }
             }
             .padding()
+            .scrollContentBackground(.hidden)
+            .screenBackground()
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .keyboardDoneToolbar()
@@ -82,6 +84,7 @@ struct OnboardingView: View {
                     ForEach(ActivityLevel.allCases) { Text($0.rawValue).tag($0) }
                 }
             }
+            .scrollContentBackground(.hidden)
             .frame(maxHeight: 380)
 
             Button("Continue") {
@@ -137,6 +140,7 @@ struct OnboardingView: View {
                 targetField("Carbs", $goals.carbs, unit: "g")
                 targetField("Fat", $goals.fat, unit: "g")
             }
+            .scrollContentBackground(.hidden)
             .frame(maxHeight: 300)
 
             Button("Continue") { step = 4 }

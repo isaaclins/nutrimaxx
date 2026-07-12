@@ -14,33 +14,48 @@ struct RecipesView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                ForEach(filtered) { recipe in
-                    Button {
-                        editor = .edit(recipe)
-                    } label: {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(recipe.name).foregroundStyle(.primary)
-                                Text("\(Format.grams(recipe.servings)) servings")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+            ScrollView {
+                VStack(spacing: 14) {
+                    GlassSearchField(text: $query, placeholder: "Search recipes")
+
+                    if store.recipes.isEmpty {
+                        EmptyStateCard(icon: "book", title: "No Recipes",
+                                       message: "Tap + to create your first recipe.")
+                            .padding(.top, 40)
+                    } else {
+                        GlassEffectContainer(spacing: 12) {
+                            VStack(spacing: 12) {
+                                ForEach(filtered) { recipe in
+                                    Button { editor = .edit(recipe) } label: {
+                                        GlassRow {
+                                            HStack {
+                                                VStack(alignment: .leading, spacing: 3) {
+                                                    Text(recipe.name).font(.body.weight(.medium))
+                                                        .foregroundStyle(.primary)
+                                                    Text("\(Format.grams(recipe.servings)) servings")
+                                                        .font(.caption).foregroundStyle(.secondary)
+                                                }
+                                                Spacer()
+                                                Text("\(Format.kcal(recipe.caloriesPerServing)) kcal/serv")
+                                                    .font(.subheadline).foregroundStyle(Theme.accent)
+                                            }
+                                        }
+                                    }
+                                    .buttonStyle(.plain)
+                                    .contextMenu {
+                                        Button(role: .destructive) {
+                                            store.deleteRecipe(recipe)
+                                        } label: { Label("Delete", systemImage: "trash") }
+                                    }
+                                }
                             }
-                            Spacer()
-                            Text("\(Format.kcal(recipe.caloriesPerServing)) kcal/serv")
-                                .foregroundStyle(.secondary)
                         }
                     }
                 }
-                .onDelete { store.deleteRecipes(at: $0) }
+                .padding(16)
             }
-            .overlay {
-                if store.recipes.isEmpty {
-                    ContentUnavailableView("No Recipes", systemImage: "book",
-                                           description: Text("Tap + to create your first recipe."))
-                }
-            }
-            .searchable(text: $query, prompt: "Search")
+            .scrollContentBackground(.hidden)
+            .screenBackground()
             .navigationTitle("Recipes")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -75,17 +90,12 @@ struct RecipeEditorView: View {
     @State private var name: String
     @State private var servingsText: String
     @State private var ingredients: [RecipeIngredient]
-
-    // Manual totals (used only when there are no ingredients).
     @State private var caloriesText: String
     @State private var proteinText: String
     @State private var carbsText: String
     @State private var fatText: String
-
     @State private var logMeal: MealType = .dinner
     @State private var logServingsText = "1"
-
-    // Add-ingredient flow.
     @State private var showPicker = false
     @State private var pendingProduct: FoodProduct?
 
@@ -116,15 +126,10 @@ struct RecipeEditorView: View {
         Nutrients(calories: Double(caloriesText) ?? 0, protein: Double(proteinText) ?? 0,
                   carbs: Double(carbsText) ?? 0, fat: Double(fatText) ?? 0)
     }
-
     private var builtRecipe: Recipe {
-        Recipe(id: existing?.id ?? UUID(),
-               name: name.trimmingCharacters(in: .whitespaces),
-               servings: Double(servingsText) ?? 1,
-               nutrients: manualNutrients,
-               ingredients: ingredients)
+        Recipe(id: existing?.id ?? UUID(), name: name.trimmingCharacters(in: .whitespaces),
+               servings: Double(servingsText) ?? 1, nutrients: manualNutrients, ingredients: ingredients)
     }
-
     private var totals: Nutrients { builtRecipe.effectiveNutrients }
 
     var body: some View {
@@ -133,14 +138,11 @@ struct RecipeEditorView: View {
                 Section("Recipe") {
                     TextField("Name", text: $name)
                     HStack {
-                        Text("Servings")
-                        Spacer()
+                        Text("Servings"); Spacer()
                         TextField("1", text: $servingsText)
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
+                            .keyboardType(.decimalPad).multilineTextAlignment(.trailing)
                     }
                 }
-
                 Section("Ingredients") {
                     ForEach(ingredients) { ingredient in
                         HStack {
@@ -155,14 +157,8 @@ struct RecipeEditorView: View {
                         }
                     }
                     .onDelete { ingredients.remove(atOffsets: $0) }
-
-                    Button {
-                        showPicker = true
-                    } label: {
-                        Label("Add ingredient", systemImage: "plus")
-                    }
+                    Button { showPicker = true } label: { Label("Add ingredient", systemImage: "plus") }
                 }
-
                 if ingredients.isEmpty {
                     Section("Totals (whole recipe)") {
                         field("Calories", $caloriesText, unit: "kcal")
@@ -178,18 +174,15 @@ struct RecipeEditorView: View {
                         LabeledContent("Fat", value: "\(Format.grams(totals.fat)) g")
                     }
                 }
-
                 if existing != nil {
                     Section("Log to a meal") {
                         Picker("Meal", selection: $logMeal) {
                             ForEach(MealType.allCases) { Text($0.rawValue.capitalized).tag($0) }
                         }
                         HStack {
-                            Text("Servings")
-                            Spacer()
+                            Text("Servings"); Spacer()
                             TextField("1", text: $logServingsText)
-                                .keyboardType(.decimalPad)
-                                .multilineTextAlignment(.trailing)
+                                .keyboardType(.decimalPad).multilineTextAlignment(.trailing)
                         }
                         Button("Add to Log") {
                             store.logRecipe(builtRecipe, servings: Double(logServingsText) ?? 1,
@@ -205,42 +198,35 @@ struct RecipeEditorView: View {
                     }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .screenBackground()
             .navigationTitle(existing == nil ? "New Recipe" : "Edit Recipe")
             .navigationBarTitleDisplayMode(.inline)
             .keyboardDoneToolbar()
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        if existing == nil { store.addRecipe(builtRecipe) }
-                        else { store.updateRecipe(builtRecipe) }
+                        if existing == nil { store.addRecipe(builtRecipe) } else { store.updateRecipe(builtRecipe) }
                         dismiss()
                     }
                     .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
             }
             .sheet(isPresented: $showPicker) {
                 NavigationStack {
-                    FoodPickerView { product in
-                        pendingProduct = product
-                        showPicker = false
-                    }
-                    .navigationTitle("Add Ingredient")
-                    .navigationBarTitleDisplayMode(.inline)
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button("Cancel") { showPicker = false }
+                    FoodPickerView { product in pendingProduct = product; showPicker = false }
+                        .navigationTitle("Add Ingredient")
+                        .navigationBarTitleDisplayMode(.inline)
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) { Button("Cancel") { showPicker = false } }
                         }
-                    }
                 }
                 .environmentObject(store)
             }
             .sheet(item: $pendingProduct) { product in
                 IngredientAmountView(product: product) { ingredient in
-                    ingredients.append(ingredient)
-                    pendingProduct = nil
+                    ingredients.append(ingredient); pendingProduct = nil
                 }
             }
         }
@@ -248,11 +234,8 @@ struct RecipeEditorView: View {
 
     private func field(_ label: String, _ text: Binding<String>, unit: String) -> some View {
         HStack {
-            Text(label)
-            Spacer()
-            TextField("0", text: text)
-                .keyboardType(.decimalPad)
-                .multilineTextAlignment(.trailing)
+            Text(label); Spacer()
+            TextField("0", text: text).keyboardType(.decimalPad).multilineTextAlignment(.trailing)
             Text(unit).foregroundStyle(.secondary)
         }
     }
@@ -284,19 +267,17 @@ struct IngredientAmountView: View {
                     LabeledContent("Calories", value: "\(Format.kcal(product.per100g.scaled(toGrams: grams).calories)) kcal")
                 }
             }
+            .scrollContentBackground(.hidden)
+            .screenBackground()
             .navigationTitle("Amount")
             .navigationBarTitleDisplayMode(.inline)
             .keyboardDoneToolbar()
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Add") {
-                        onAdd(RecipeIngredient(name: product.name, grams: grams, per100g: product.per100g))
-                    }
-                    .disabled(grams <= 0)
+                    Button("Add") { onAdd(RecipeIngredient(name: product.name, grams: grams, per100g: product.per100g)) }
+                        .disabled(grams <= 0)
                 }
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
             }
         }
     }

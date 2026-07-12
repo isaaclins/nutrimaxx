@@ -70,61 +70,78 @@ struct StatsView: View {
     }
 
     var body: some View {
-        List {
-            Section("This Week") {
-                statRow("Avg calories", "\(Format.kcal(avgCalories)) kcal")
-                statRow("Avg protein", "\(Format.grams(avgProtein)) g")
-                statRow("Avg carbs", "\(Format.grams(avgCarbs)) g")
-                statRow("Avg fat", "\(Format.grams(avgFat)) g")
-                statRow("Logging streak", "\(loggingStreak) day\(loggingStreak == 1 ? "" : "s")")
-                if !store.supplements.isEmpty {
-                    statRow("Supplement adherence", "\(Int((supplementAdherence * 100).rounded()))%")
-                }
-            }
-
-            Section("Calories (last 7 days)") {
-                Chart {
-                    ForEach(last7) { stat in
-                        BarMark(
-                            x: .value("Day", stat.label),
-                            y: .value("kcal", stat.nutrients.calories)
-                        )
-                        .foregroundStyle(.blue)
+        ScrollView {
+            GlassEffectContainer(spacing: 16) {
+                VStack(spacing: 16) {
+                    GlassCard {
+                        VStack(alignment: .leading, spacing: 12) {
+                            SectionHeader(title: "This Week")
+                            statRow("Avg calories", "\(Format.kcal(avgCalories)) kcal")
+                            statRow("Avg protein", "\(Format.grams(avgProtein)) g")
+                            statRow("Avg carbs", "\(Format.grams(avgCarbs)) g")
+                            statRow("Avg fat", "\(Format.grams(avgFat)) g")
+                            statRow("Logging streak", "\(loggingStreak) day\(loggingStreak == 1 ? "" : "s")")
+                            if !store.supplements.isEmpty {
+                                statRow("Supplement adherence", "\(Int((supplementAdherence * 100).rounded()))%")
+                            }
+                        }
                     }
-                    RuleMark(y: .value("Goal", store.goals.calories))
-                        .foregroundStyle(.orange)
-                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [4]))
-                }
-                .frame(height: 200)
-            }
 
-            Section("Macros (avg, last 7 days)") {
-                Chart {
-                    BarMark(x: .value("Macro", "Protein"), y: .value("g", avgProtein))
-                        .foregroundStyle(.purple)
-                    BarMark(x: .value("Macro", "Carbs"), y: .value("g", avgCarbs))
-                        .foregroundStyle(.blue)
-                    BarMark(x: .value("Macro", "Fat"), y: .value("g", avgFat))
-                        .foregroundStyle(.orange)
-                }
-                .frame(height: 180)
-            }
-
-            Section("Weight trend") {
-                if weightSeries.isEmpty {
-                    Text("No weight data in Apple Health.")
-                        .foregroundStyle(.secondary)
-                } else {
-                    Chart(weightSeries) { point in
-                        LineMark(x: .value("Date", point.date), y: .value("kg", point.kg))
-                            .foregroundStyle(.green)
-                        PointMark(x: .value("Date", point.date), y: .value("kg", point.kg))
-                            .foregroundStyle(.green)
+                    GlassCard {
+                        VStack(alignment: .leading, spacing: 12) {
+                            SectionHeader(title: "Calories (last 7 days)")
+                            Chart {
+                                ForEach(last7) { stat in
+                                    BarMark(x: .value("Day", stat.label), y: .value("kcal", stat.nutrients.calories))
+                                        .foregroundStyle(Theme.accentBlue)
+                                        .cornerRadius(6)
+                                }
+                                RuleMark(y: .value("Goal", store.goals.calories))
+                                    .foregroundStyle(.orange)
+                                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [4]))
+                            }
+                            .frame(height: 200)
+                        }
                     }
-                    .frame(height: 200)
+
+                    GlassCard {
+                        VStack(alignment: .leading, spacing: 12) {
+                            SectionHeader(title: "Macros (avg, last 7 days)")
+                            Chart {
+                                BarMark(x: .value("Macro", "Protein"), y: .value("g", avgProtein))
+                                    .foregroundStyle(Theme.protein).cornerRadius(6)
+                                BarMark(x: .value("Macro", "Carbs"), y: .value("g", avgCarbs))
+                                    .foregroundStyle(Theme.carbs).cornerRadius(6)
+                                BarMark(x: .value("Macro", "Fat"), y: .value("g", avgFat))
+                                    .foregroundStyle(Theme.fat).cornerRadius(6)
+                            }
+                            .frame(height: 180)
+                        }
+                    }
+
+                    GlassCard {
+                        VStack(alignment: .leading, spacing: 12) {
+                            SectionHeader(title: "Weight Trend")
+                            if weightSeries.isEmpty {
+                                Text("No weight data in Apple Health.")
+                                    .font(.subheadline).foregroundStyle(.secondary)
+                            } else {
+                                Chart(weightSeries) { point in
+                                    LineMark(x: .value("Date", point.date), y: .value("kg", point.kg))
+                                        .foregroundStyle(Theme.accent)
+                                    PointMark(x: .value("Date", point.date), y: .value("kg", point.kg))
+                                        .foregroundStyle(Theme.accent)
+                                }
+                                .frame(height: 200)
+                            }
+                        }
+                    }
                 }
             }
+            .padding(16)
         }
+        .scrollContentBackground(.hidden)
+        .screenBackground()
         .navigationTitle("Statistics")
         .navigationBarTitleDisplayMode(.inline)
         .task {
@@ -134,6 +151,6 @@ struct StatsView: View {
     }
 
     private func statRow(_ label: String, _ value: String) -> some View {
-        HStack { Text(label); Spacer(); Text(value).foregroundStyle(.secondary) }
+        HStack { Text(label); Spacer(); Text(value).font(.subheadline.weight(.medium)).foregroundStyle(.secondary) }
     }
 }

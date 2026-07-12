@@ -15,6 +15,8 @@ struct AddFoodView: View {
             FoodPickerView { product in
                 selected = product
             }
+            .scrollContentBackground(.hidden)
+            .screenBackground()
             .navigationTitle("Add to \(meal.rawValue.capitalized)")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -67,6 +69,8 @@ struct LogAmountView: View {
                     LabeledContent("Fat", value: "\(Format.grams(scaled.fat)) g")
                 }
             }
+            .scrollContentBackground(.hidden)
+            .screenBackground()
             .navigationTitle("Log Food")
             .navigationBarTitleDisplayMode(.inline)
             .keyboardDoneToolbar()

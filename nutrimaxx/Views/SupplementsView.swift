@@ -14,42 +14,28 @@ struct SupplementsView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                ForEach(filtered) { supplement in
-                    HStack {
-                        Button {
-                            store.toggleSupplement(supplement)
-                        } label: {
-                            Image(systemName: supplement.takenToday ? "largecircle.fill.circle" : "circle")
-                        }
-                        .buttonStyle(.plain)
+            ScrollView {
+                VStack(spacing: 14) {
+                    GlassSearchField(text: $query, placeholder: "Search supplements")
 
-                        Button {
-                            editor = .edit(supplement)
-                        } label: {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(supplement.name).foregroundStyle(.primary)
-                                    Text(supplement.frequency)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
+                    if store.supplements.isEmpty {
+                        EmptyStateCard(icon: "pills", title: "No Supplements",
+                                       message: "Tap + to add a supplement.")
+                            .padding(.top, 40)
+                    } else {
+                        GlassEffectContainer(spacing: 12) {
+                            VStack(spacing: 12) {
+                                ForEach(filtered) { supplement in
+                                    supplementRow(supplement)
                                 }
-                                Spacer()
-                                Text(supplement.time)
-                                    .foregroundStyle(.secondary)
                             }
                         }
                     }
                 }
-                .onDelete { store.deleteSupplements(at: $0) }
+                .padding(16)
             }
-            .overlay {
-                if store.supplements.isEmpty {
-                    ContentUnavailableView("No Supplements", systemImage: "pills",
-                                           description: Text("Tap + to add a supplement."))
-                }
-            }
-            .searchable(text: $query, prompt: "Search")
+            .scrollContentBackground(.hidden)
+            .screenBackground()
             .navigationTitle("Supplements")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -59,6 +45,39 @@ struct SupplementsView: View {
             .sheet(item: $editor) { target in
                 SupplementEditorView(target: target).environmentObject(store)
             }
+        }
+    }
+
+    private func supplementRow(_ supplement: Supplement) -> some View {
+        GlassRow {
+            HStack(spacing: 12) {
+                Button { store.toggleSupplement(supplement) } label: {
+                    Image(systemName: supplement.takenToday ? "checkmark.circle.fill" : "circle")
+                        .font(.title2)
+                        .foregroundStyle(supplement.takenToday ? Theme.accent : Color.secondary)
+                }
+                .buttonStyle(.plain)
+
+                Button { editor = .edit(supplement) } label: {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(supplement.name).font(.body.weight(.medium)).foregroundStyle(.primary)
+                            Text(supplement.frequency).font(.caption).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Text(supplement.time).font(.subheadline).foregroundStyle(.secondary)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .contextMenu {
+            Button(role: .destructive) {
+                if let idx = store.supplements.firstIndex(where: { $0.id == supplement.id }) {
+                    store.deleteSupplements(at: IndexSet(integer: idx))
+                }
+            } label: { Label("Delete", systemImage: "trash") }
         }
     }
 }
@@ -122,26 +141,23 @@ struct SupplementEditorView: View {
                     }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .screenBackground()
             .navigationTitle(existing == nil ? "New Supplement" : "Edit Supplement")
             .navigationBarTitleDisplayMode(.inline)
-            .keyboardDoneToolbar()
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { save() }
                         .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
             }
         }
     }
 
     private func save() {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
+        let formatter = DateFormatter(); formatter.dateFormat = "HH:mm"
         let timeString = formatter.string(from: time)
-
         if let existing {
             var updated = existing
             updated.name = name.trimmingCharacters(in: .whitespaces)
@@ -149,14 +165,9 @@ struct SupplementEditorView: View {
             updated.time = timeString
             store.updateSupplement(updated)
         } else {
-            let supplement = Supplement(
-                name: name.trimmingCharacters(in: .whitespaces),
-                frequency: frequency,
-                time: timeString
-            )
-            store.addSupplement(supplement)
+            store.addSupplement(Supplement(name: name.trimmingCharacters(in: .whitespaces),
+                                           frequency: frequency, time: timeString))
         }
-        // Ask for notification permission if we still can (dismissed onboarding, etc.).
         Task { await NotificationManager.shared.requestAuthorizationIfNeeded() }
         dismiss()
     }
@@ -164,10 +175,8 @@ struct SupplementEditorView: View {
     private static func defaultTime() -> Date {
         Calendar.current.date(bySettingHour: 8, minute: 0, second: 0, of: Date()) ?? Date()
     }
-
     private static func parse(_ string: String) -> Date {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
+        let formatter = DateFormatter(); formatter.dateFormat = "HH:mm"
         return formatter.date(from: string) ?? defaultTime()
     }
 }

@@ -80,6 +80,8 @@ struct EditFoodEntryView: View {
                     }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .screenBackground()
             .navigationTitle("Edit Food")
             .navigationBarTitleDisplayMode(.inline)
             .keyboardDoneToolbar()

@@ -16,6 +16,8 @@ struct SettingsView: View {
                 data
                 about
             }
+            .scrollContentBackground(.hidden)
+            .screenBackground()
             .navigationTitle("Settings")
             .keyboardDoneToolbar()
         }

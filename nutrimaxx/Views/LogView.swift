@@ -15,77 +15,37 @@ struct LogView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                Section {
+            ScrollView {
+                VStack(spacing: 18) {
                     DayNavigator()
-                }
 
-                ForEach(MealType.allCases) { meal in
-                    Section(meal.title) {
-                        let items = store.entries(for: meal, on: store.selectedDate)
-                        if items.isEmpty {
-                            Text("Nothing logged")
-                                .foregroundStyle(.secondary)
-                        } else {
-                            ForEach(items) { entry in
-                                Button {
-                                    editingEntry = entry
-                                } label: {
-                                    HStack {
-                                        Text(entry.name).foregroundStyle(.primary)
-                                        Spacer()
-                                        Text("\(Format.kcal(entry.nutrients.calories)) kcal")
-                                            .foregroundStyle(.secondary)
-                                    }
-                                }
+                    GlassEffectContainer(spacing: 18) {
+                        VStack(spacing: 18) {
+                            ForEach(MealType.allCases) { meal in
+                                mealCard(meal)
                             }
-                            .onDelete { offsets in
-                                for index in offsets {
-                                    let entry = items[index]
-                                    health.deleteNutrition(entryID: entry.id)
-                                    store.deleteEntry(entry)
-                                }
-                            }
-                        }
-
-                        Button {
-                            addMeal = meal
-                            showAddFood = true
-                        } label: {
-                            Label("Add food", systemImage: "plus")
                         }
                     }
                 }
+                .padding(16)
             }
+            .scrollContentBackground(.hidden)
+            .screenBackground()
             .navigationTitle("Log")
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
-                    Button {
-                        showAddMealChooser = true
-                    } label: {
-                        Image(systemName: "plus")
-                    }
-                    Button {
-                        showScanMealChooser = true
-                    } label: {
-                        Image(systemName: "barcode.viewfinder")
-                    }
+                    Button { showAddMealChooser = true } label: { Image(systemName: "plus") }
+                    Button { showScanMealChooser = true } label: { Image(systemName: "barcode.viewfinder") }
                 }
             }
             .confirmationDialog("Add to which meal?", isPresented: $showAddMealChooser, titleVisibility: .visible) {
                 ForEach(MealType.allCases) { meal in
-                    Button(meal.rawValue.capitalized) {
-                        addMeal = meal
-                        showAddFood = true
-                    }
+                    Button(meal.rawValue.capitalized) { addMeal = meal; showAddFood = true }
                 }
             }
             .confirmationDialog("Scan into which meal?", isPresented: $showScanMealChooser, titleVisibility: .visible) {
                 ForEach(MealType.allCases) { meal in
-                    Button(meal.rawValue.capitalized) {
-                        addMeal = meal
-                        showScanner = true
-                    }
+                    Button(meal.rawValue.capitalized) { addMeal = meal; showScanner = true }
                 }
             }
             .sheet(isPresented: $showAddFood) {
@@ -101,17 +61,67 @@ struct LogView: View {
                 .environmentObject(store)
             }
             .fullScreenCover(isPresented: $showScanner) {
-                BarcodeScannerView { code in
-                    showScanner = false
-                    lookUp(barcode: code)
-                } onCancel: {
-                    showScanner = false
-                }
+                BarcodeScannerView { code in showScanner = false; lookUp(barcode: code) }
+                    onCancel: { showScanner = false }
             }
             .alert("Not found", isPresented: Binding(get: { scanError != nil }, set: { if !$0 { scanError = nil } })) {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text(scanError ?? "")
+            }
+        }
+    }
+
+    private func mealCard(_ meal: MealType) -> some View {
+        let items = store.entries(for: meal, on: store.selectedDate)
+        let total = items.reduce(0) { $0 + $1.nutrients.calories }
+        return GlassCard {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text(meal.title)
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.secondary)
+                        .tracking(1.2)
+                    Spacer()
+                    if total > 0 {
+                        Text("\(Format.kcal(total)) kcal")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Theme.accent)
+                    }
+                }
+
+                if items.isEmpty {
+                    Text("Nothing logged")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(items) { entry in
+                        Button { editingEntry = entry } label: {
+                            HStack {
+                                Text(entry.name).foregroundStyle(.primary)
+                                Spacer()
+                                Text("\(Format.kcal(entry.nutrients.calories)) kcal")
+                                    .foregroundStyle(.secondary)
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .contextMenu {
+                            Button(role: .destructive) {
+                                health.deleteNutrition(entryID: entry.id)
+                                store.deleteEntry(entry)
+                            } label: { Label("Delete", systemImage: "trash") }
+                        }
+                        if entry.id != items.last?.id { Divider().opacity(0.4) }
+                    }
+                }
+
+                Button { addMeal = meal; showAddFood = true } label: {
+                    Label("Add food", systemImage: "plus")
+                        .font(.subheadline.weight(.medium))
+                }
+                .buttonStyle(.glass)
+                .tint(Theme.accent)
             }
         }
     }

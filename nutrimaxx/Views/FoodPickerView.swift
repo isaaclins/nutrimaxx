@@ -34,6 +34,8 @@ struct FoodPickerView: View {
                 catalog
             }
         }
+        .scrollContentBackground(.hidden)
+        .screenBackground()
         .sheet(isPresented: $showCustom) {
             CustomFoodView().environmentObject(store)
         }
@@ -183,6 +185,8 @@ struct CustomFoodView: View {
                     field("Fat", $fatText, unit: "g")
                 }
             }
+            .scrollContentBackground(.hidden)
+            .screenBackground()
             .navigationTitle("Custom Food")
             .navigationBarTitleDisplayMode(.inline)
             .keyboardDoneToolbar()

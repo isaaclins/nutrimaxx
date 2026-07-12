@@ -14,20 +14,24 @@ struct DashboardView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    Text(greeting())
-                        .font(.largeTitle.bold())
+                GlassEffectContainer(spacing: 20) {
+                    VStack(alignment: .leading, spacing: 20) {
+                        Text(greeting())
+                            .font(.largeTitle.bold())
 
-                    DayNavigator()
+                        DayNavigator()
 
-                    ring
+                        ring.glassCard()
 
-                    macros
+                        macros
 
-                    supplementsToday
+                        supplementsToday
+                    }
                 }
                 .padding(16)
             }
+            .scrollContentBackground(.hidden)
+            .screenBackground()
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -65,7 +69,7 @@ struct DashboardView: View {
                     .padding(.top, 2)
             }
         }
-        .frame(width: 240, height: 240)
+        .frame(width: 220, height: 220)
         .frame(maxWidth: .infinity)
         .padding(.vertical, 8)
         .overlay(alignment: .bottom) {
@@ -86,7 +90,7 @@ struct DashboardView: View {
             MacroBar(name: "Carbs", value: store.consumed.carbs, goal: store.goals.carbs, color: .blue)
             MacroBar(name: "Fat", value: store.consumed.fat, goal: store.goals.fat, color: .orange)
         }
-        .cardStyle()
+        .glassCard()
     }
 
     // MARK: - Supplements
@@ -117,7 +121,7 @@ struct DashboardView: View {
                 }
             }
         }
-        .cardStyle()
+        .glassCard()
     }
 }
 
@@ -154,20 +158,6 @@ struct MacroBar: View {
             }
         }
     }
-}
-
-/// Card container: padded rounded rectangle on the secondary system background.
-private struct CardStyle: ViewModifier {
-    func body(content: Content) -> some View {
-        content
-            .padding(16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: 16).fill(Color(.secondarySystemBackground)))
-    }
-}
-
-extension View {
-    func cardStyle() -> some View { modifier(CardStyle()) }
 }
 
 /// Shared day header used by Dashboard and Log: step buttons plus a date picker
@@ -226,5 +216,7 @@ struct DayNavigator: View {
             .disabled(store.isSelectedDateToday())
         }
         .frame(maxWidth: .infinity)
+        .padding(.horizontal, 6)
+        .glassEffect(.regular, in: Capsule())
     }
 }
