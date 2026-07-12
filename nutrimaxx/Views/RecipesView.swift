@@ -65,7 +65,7 @@ enum RecipeEditorTarget: Identifiable {
     }
 }
 
-/// Create or edit a recipe, and optionally log servings of it to a meal.
+/// Create or edit a recipe from ingredients (or manual totals), and log servings.
 struct RecipeEditorView: View {
     @EnvironmentObject var store: AppStore
     @Environment(\.dismiss) private var dismiss
@@ -74,6 +74,9 @@ struct RecipeEditorView: View {
 
     @State private var name: String
     @State private var servingsText: String
+    @State private var ingredients: [RecipeIngredient]
+
+    // Manual totals (used only when there are no ingredients).
     @State private var caloriesText: String
     @State private var proteinText: String
     @State private var carbsText: String
@@ -82,12 +85,17 @@ struct RecipeEditorView: View {
     @State private var logMeal: MealType = .dinner
     @State private var logServingsText = "1"
 
+    // Add-ingredient flow.
+    @State private var showPicker = false
+    @State private var pendingProduct: FoodProduct?
+
     init(target: RecipeEditorTarget) {
         switch target {
         case .create:
             existing = nil
             _name = State(initialValue: "")
             _servingsText = State(initialValue: "1")
+            _ingredients = State(initialValue: [])
             _caloriesText = State(initialValue: "")
             _proteinText = State(initialValue: "")
             _carbsText = State(initialValue: "")
@@ -96,6 +104,7 @@ struct RecipeEditorView: View {
             existing = recipe
             _name = State(initialValue: recipe.name)
             _servingsText = State(initialValue: Format.grams(recipe.servings))
+            _ingredients = State(initialValue: recipe.ingredients)
             _caloriesText = State(initialValue: Format.grams(recipe.nutrients.calories))
             _proteinText = State(initialValue: Format.grams(recipe.nutrients.protein))
             _carbsText = State(initialValue: Format.grams(recipe.nutrients.carbs))
@@ -103,19 +112,20 @@ struct RecipeEditorView: View {
         }
     }
 
-    private var builtRecipe: Recipe {
-        Recipe(
-            id: existing?.id ?? UUID(),
-            name: name.trimmingCharacters(in: .whitespaces),
-            servings: Double(servingsText) ?? 1,
-            nutrients: Nutrients(
-                calories: Double(caloriesText) ?? 0,
-                protein: Double(proteinText) ?? 0,
-                carbs: Double(carbsText) ?? 0,
-                fat: Double(fatText) ?? 0
-            )
-        )
+    private var manualNutrients: Nutrients {
+        Nutrients(calories: Double(caloriesText) ?? 0, protein: Double(proteinText) ?? 0,
+                  carbs: Double(carbsText) ?? 0, fat: Double(fatText) ?? 0)
     }
+
+    private var builtRecipe: Recipe {
+        Recipe(id: existing?.id ?? UUID(),
+               name: name.trimmingCharacters(in: .whitespaces),
+               servings: Double(servingsText) ?? 1,
+               nutrients: manualNutrients,
+               ingredients: ingredients)
+    }
+
+    private var totals: Nutrients { builtRecipe.effectiveNutrients }
 
     var body: some View {
         NavigationStack {
@@ -130,11 +140,43 @@ struct RecipeEditorView: View {
                             .multilineTextAlignment(.trailing)
                     }
                 }
-                Section("Totals (whole recipe)") {
-                    field("Calories", $caloriesText, unit: "kcal")
-                    field("Protein", $proteinText, unit: "g")
-                    field("Carbs", $carbsText, unit: "g")
-                    field("Fat", $fatText, unit: "g")
+
+                Section("Ingredients") {
+                    ForEach(ingredients) { ingredient in
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(ingredient.name)
+                                Text("\(Format.grams(ingredient.grams)) g")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Text("\(Format.kcal(ingredient.nutrients.calories)) kcal")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .onDelete { ingredients.remove(atOffsets: $0) }
+
+                    Button {
+                        showPicker = true
+                    } label: {
+                        Label("Add ingredient", systemImage: "plus")
+                    }
+                }
+
+                if ingredients.isEmpty {
+                    Section("Totals (whole recipe)") {
+                        field("Calories", $caloriesText, unit: "kcal")
+                        field("Protein", $proteinText, unit: "g")
+                        field("Carbs", $carbsText, unit: "g")
+                        field("Fat", $fatText, unit: "g")
+                    }
+                } else {
+                    Section("Totals (from ingredients)") {
+                        LabeledContent("Calories", value: "\(Format.kcal(totals.calories)) kcal")
+                        LabeledContent("Protein", value: "\(Format.grams(totals.protein)) g")
+                        LabeledContent("Carbs", value: "\(Format.grams(totals.carbs)) g")
+                        LabeledContent("Fat", value: "\(Format.grams(totals.fat)) g")
+                    }
                 }
 
                 if existing != nil {
@@ -157,7 +199,7 @@ struct RecipeEditorView: View {
                     }
                     Section {
                         Button("Delete Recipe", role: .destructive) {
-                            if let existing { store.deleteRecipes(at: IndexSet(store.recipes.firstIndex(where: { $0.id == existing.id }).map { [$0] } ?? [])) }
+                            if let existing { store.deleteRecipe(existing) }
                             dismiss()
                         }
                     }
@@ -179,6 +221,28 @@ struct RecipeEditorView: View {
                     Button("Cancel") { dismiss() }
                 }
             }
+            .sheet(isPresented: $showPicker) {
+                NavigationStack {
+                    FoodPickerView { product in
+                        pendingProduct = product
+                        showPicker = false
+                    }
+                    .navigationTitle("Add Ingredient")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Cancel") { showPicker = false }
+                        }
+                    }
+                }
+                .environmentObject(store)
+            }
+            .sheet(item: $pendingProduct) { product in
+                IngredientAmountView(product: product) { ingredient in
+                    ingredients.append(ingredient)
+                    pendingProduct = nil
+                }
+            }
         }
     }
 
@@ -190,6 +254,50 @@ struct RecipeEditorView: View {
                 .keyboardType(.decimalPad)
                 .multilineTextAlignment(.trailing)
             Text(unit).foregroundStyle(.secondary)
+        }
+    }
+}
+
+/// Choose grams for an ingredient being added to a recipe.
+struct IngredientAmountView: View {
+    @Environment(\.dismiss) private var dismiss
+    let product: FoodProduct
+    var onAdd: (RecipeIngredient) -> Void
+
+    @State private var gramsText = "100"
+    private var grams: Double { Double(gramsText) ?? 0 }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Ingredient") {
+                    Text(product.name)
+                    if let brand = product.brand { Text(brand).foregroundStyle(.secondary) }
+                }
+                Section("Amount") {
+                    HStack {
+                        TextField("Grams", text: $gramsText).keyboardType(.decimalPad)
+                        Text("g").foregroundStyle(.secondary)
+                    }
+                }
+                Section("Adds") {
+                    LabeledContent("Calories", value: "\(Format.kcal(product.per100g.scaled(toGrams: grams).calories)) kcal")
+                }
+            }
+            .navigationTitle("Amount")
+            .navigationBarTitleDisplayMode(.inline)
+            .keyboardDoneToolbar()
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Add") {
+                        onAdd(RecipeIngredient(name: product.name, grams: grams, per100g: product.per100g))
+                    }
+                    .disabled(grams <= 0)
+                }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
         }
     }
 }

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- nutrimaxx app icon, 1024x1024. Import into Icon Composer / Xcode. -->
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0A84FF"/>
+      <stop offset="1" stop-color="#0040A0"/>
+    </linearGradient>
+    <linearGradient id="leaf" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5AE38B"/>
+      <stop offset="1" stop-color="#16A34A"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background. Icon Composer applies the rounded mask, so keep a full square. -->
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+
+  <!-- Progress ring, echoing the dashboard calorie ring -->
+  <circle cx="512" cy="512" r="300" fill="none" stroke="#FFFFFF" stroke-opacity="0.18" stroke-width="70"/>
+  <path d="M512 212 a300 300 0 1 1 -212 88"
+        fill="none" stroke="#FFFFFF" stroke-width="70" stroke-linecap="round"/>
+
+  <!-- Leaf mark for nutrition -->
+  <path d="M512 360
+           C 620 360, 700 440, 700 548
+           C 700 640, 628 700, 512 700
+           C 512 560, 560 452, 640 400
+           C 560 430, 500 500, 480 596
+           C 430 560, 412 500, 412 460
+           C 412 400, 452 360, 512 360 Z"
+        fill="url(#leaf)"/>
+
+  <!-- Wordmark initial -->
+  <text x="512" y="852" text-anchor="middle"
+        font-family="SF Pro Display, Helvetica, Arial, sans-serif"
+        font-size="150" font-weight="700" fill="#FFFFFF">nx</text>
+</svg>

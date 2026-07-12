@@ -12,8 +12,9 @@ struct nutrimaxxApp: App {
                 .environmentObject(health)
                 .preferredColorScheme(.dark)
                 .task {
-                    // Keep supplement reminders in sync on every launch.
+                    // Keep reminders in sync on every launch.
                     NotificationManager.shared.reschedule(for: store.supplements)
+                    NotificationManager.shared.scheduleMealReminders(store.mealReminders)
                 }
         }
     }

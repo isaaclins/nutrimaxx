@@ -8,6 +8,7 @@ final class NotificationManager {
 
     private let center = UNUserNotificationCenter.current()
     private let prefix = "supplement."
+    private let mealPrefix = "meal."
 
     /// Current authorization status.
     func authorizationStatus() async -> UNAuthorizationStatus {
@@ -61,6 +62,33 @@ final class NotificationManager {
                     content: content,
                     trigger: trigger
                 )
+                self.center.add(request)
+            }
+        }
+    }
+
+    /// Rebuild daily meal reminders from settings.
+    func scheduleMealReminders(_ reminders: MealReminders) {
+        center.getPendingNotificationRequests { [weak self] requests in
+            guard let self else { return }
+            let ids = requests.map(\.identifier).filter { $0.hasPrefix(self.mealPrefix) }
+            self.center.removePendingNotificationRequests(withIdentifiers: ids)
+
+            for (meal, time) in reminders.activeTimes {
+                let parts = time.split(separator: ":").compactMap { Int($0) }
+                guard parts.count == 2 else { continue }
+                let content = UNMutableNotificationContent()
+                content.title = "Log your \(meal.rawValue)"
+                content.body = "Don't forget to log what you ate for \(meal.rawValue)."
+                content.sound = .default
+
+                var components = DateComponents()
+                components.hour = parts[0]
+                components.minute = parts[1]
+                let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
+                let request = UNNotificationRequest(
+                    identifier: self.mealPrefix + meal.rawValue,
+                    content: content, trigger: trigger)
                 self.center.add(request)
             }
         }

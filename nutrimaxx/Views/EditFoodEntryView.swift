@@ -5,6 +5,7 @@ import SwiftUI
 /// re-scale with the grams; otherwise nutrients are edited directly.
 struct EditFoodEntryView: View {
     @EnvironmentObject var store: AppStore
+    @EnvironmentObject var health: HealthManager
     @Environment(\.dismiss) private var dismiss
 
     @State private var draft: FoodEntry
@@ -73,6 +74,7 @@ struct EditFoodEntryView: View {
 
                 Section {
                     Button("Delete Entry", role: .destructive) {
+                        health.deleteNutrition(entryID: draft.id)
                         store.deleteEntry(draft)
                         dismiss()
                     }
@@ -87,6 +89,7 @@ struct EditFoodEntryView: View {
                         draft.grams = hasBase ? grams : draft.grams
                         draft.nutrients = scaled
                         store.updateEntry(draft)
+                        health.updateNutrition(for: draft)
                         dismiss()
                     }
                 }

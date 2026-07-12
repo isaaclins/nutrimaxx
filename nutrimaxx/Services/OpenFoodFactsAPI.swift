@@ -2,10 +2,11 @@ import Foundation
 
 /// A single search result from OpenFoodFacts, normalised to per-100g nutrients.
 struct FoodProduct: Identifiable, Hashable {
-    let id: String            // barcode / product code
+    let id: String            // barcode / product code, or a uuid for catalog items
     let name: String
     let brand: String?
     let per100g: Nutrients
+    var barcode: String? = nil
 }
 
 enum OpenFoodFactsError: Error {
@@ -25,7 +26,7 @@ struct OpenFoodFactsAPI {
     }()
 
     /// Text search across products, returning up to `pageSize` normalised results.
-    func search(_ query: String, pageSize: Int = 25) async throws -> [FoodProduct] {
+    func search(_ query: String, page: Int = 1, pageSize: Int = 25) async throws -> [FoodProduct] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return [] }
 
@@ -35,6 +36,7 @@ struct OpenFoodFactsAPI {
             URLQueryItem(name: "search_simple", value: "1"),
             URLQueryItem(name: "action", value: "process"),
             URLQueryItem(name: "json", value: "1"),
+            URLQueryItem(name: "page", value: String(page)),
             URLQueryItem(name: "page_size", value: String(pageSize)),
             URLQueryItem(name: "fields", value: "code,product_name,brands,nutriments"),
         ]
@@ -102,7 +104,8 @@ struct OpenFoodFactsAPI {
                     protein: n.proteins_100g ?? 0,
                     carbs: n.carbohydrates_100g ?? 0,
                     fat: n.fat_100g ?? 0
-                )
+                ),
+                barcode: code
             )
         }
     }

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Search OpenFoodFacts, pick a product, choose a gram amount, and log it to a meal.
+/// Pick a food (search / recent / favorite / custom), choose an amount, and log it.
 struct AddFoodView: View {
     @EnvironmentObject var store: AppStore
     @Environment(\.dismiss) private var dismiss
@@ -8,53 +8,15 @@ struct AddFoodView: View {
     var meal: MealType
     var date: Date
 
-    @State private var query = ""
-    @State private var results: [FoodProduct] = []
-    @State private var isSearching = false
-    @State private var errorMessage: String?
-    @State private var searchTask: Task<Void, Never>?
-
     @State private var selected: FoodProduct?
 
     var body: some View {
         NavigationStack {
-            List {
-                Section {
-                    TextField("Search foods", text: $query)
-                        .textInputAutocapitalization(.never)
-                        .onSubmit(runSearch)
-                        .onChange(of: query) { _, _ in scheduleSearch() }
-                }
-
-                if isSearching {
-                    HStack { ProgressView(); Text("Searching...") }
-                }
-                if let errorMessage {
-                    Text(errorMessage).foregroundStyle(.red)
-                }
-
-                ForEach(results) { product in
-                    Button {
-                        selected = product
-                    } label: {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(product.name)
-                            HStack(spacing: 8) {
-                                if let brand = product.brand {
-                                    Text(brand)
-                                }
-                                Text("\(Format.kcal(product.per100g.calories)) kcal / 100 g")
-                            }
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        }
-                    }
-                    .buttonStyle(.plain)
-                }
+            FoodPickerView { product in
+                selected = product
             }
             .navigationTitle("Add to \(meal.rawValue.capitalized)")
             .navigationBarTitleDisplayMode(.inline)
-            .keyboardDoneToolbar()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -63,38 +25,6 @@ struct AddFoodView: View {
             .sheet(item: $selected) { product in
                 LogAmountView(product: product, meal: meal, date: date) { dismiss() }
                     .environmentObject(store)
-            }
-        }
-    }
-
-    private func scheduleSearch() {
-        searchTask?.cancel()
-        let text = query
-        searchTask = Task {
-            try? await Task.sleep(nanoseconds: 400_000_000)
-            if Task.isCancelled { return }
-            if text == query { runSearch() }
-        }
-    }
-
-    private func runSearch() {
-        let text = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { results = []; return }
-        isSearching = true
-        errorMessage = nil
-        Task {
-            do {
-                let found = try await OpenFoodFactsAPI.shared.search(text)
-                await MainActor.run {
-                    results = found
-                    isSearching = false
-                    if found.isEmpty { errorMessage = "No results" }
-                }
-            } catch {
-                await MainActor.run {
-                    isSearching = false
-                    errorMessage = "Could not reach OpenFoodFacts."
-                }
             }
         }
     }
@@ -147,6 +77,8 @@ struct LogAmountView: View {
                                               nutrients: scaled, date: date,
                                               basePer100g: product.per100g)
                         store.addEntry(entry)
+                        store.recordUse(name: product.name, brand: product.brand,
+                                        per100g: product.per100g, barcode: product.barcode)
                         health.saveNutrition(for: entry)
                         onLogged()
                     }

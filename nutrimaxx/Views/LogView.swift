@@ -2,6 +2,7 @@ import SwiftUI
 
 struct LogView: View {
     @EnvironmentObject var store: AppStore
+    @EnvironmentObject var health: HealthManager
 
     @State private var showAddFood = false
     @State private var addMeal: MealType = .breakfast
@@ -38,7 +39,13 @@ struct LogView: View {
                                     }
                                 }
                             }
-                            .onDelete { store.deleteEntries(for: meal, on: store.selectedDate, at: $0) }
+                            .onDelete { offsets in
+                                for index in offsets {
+                                    let entry = items[index]
+                                    health.deleteNutrition(entryID: entry.id)
+                                    store.deleteEntry(entry)
+                                }
+                            }
                         }
 
                         Button {

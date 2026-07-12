@@ -2,6 +2,15 @@ import SwiftUI
 
 struct DashboardView: View {
     @EnvironmentObject var store: AppStore
+    @EnvironmentObject var health: HealthManager
+
+    /// Active energy counts toward the budget only when viewing today.
+    private var activeEnergy: Double {
+        store.isSelectedDateToday() ? (health.activeEnergyTodayKcal ?? 0) : 0
+    }
+    private var caloriesRemaining: Double {
+        store.goals.calories + activeEnergy - store.consumed.calories
+    }
 
     var body: some View {
         NavigationStack {
@@ -19,6 +28,16 @@ struct DashboardView: View {
                         Text("kcal consumed")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
+                        Text(caloriesRemaining >= 0
+                             ? "\(Format.kcal(caloriesRemaining)) kcal remaining"
+                             : "\(Format.kcal(-caloriesRemaining)) kcal over")
+                            .font(.subheadline)
+                            .foregroundStyle(caloriesRemaining >= 0 ? Color.secondary : Color.red)
+                        if activeEnergy > 0 {
+                            Text("Includes \(Format.kcal(activeEnergy)) kcal active energy")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
@@ -30,6 +49,11 @@ struct DashboardView: View {
                 .padding(16)
             }
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink { StatsView() } label: { Image(systemName: "chart.bar") }
+                }
+            }
         }
     }
 

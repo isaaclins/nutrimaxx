@@ -58,16 +58,52 @@ struct FoodEntry: Codable, Identifiable, Hashable {
     var basePer100g: Nutrients? = nil
 }
 
+// MARK: - Food catalog (recent / favorite / custom)
+
+/// A reusable food in the user's catalog: things they've logged before,
+/// favorited, or created manually. Stored per-100g.
+struct FoodItem: Codable, Identifiable, Hashable {
+    var id = UUID()
+    var name: String
+    var brand: String?
+    var per100g: Nutrients
+    var isFavorite: Bool = false
+    var isCustom: Bool = false
+    var barcode: String?
+    var lastUsedAt: Date?
+
+    var asProduct: FoodProduct {
+        FoodProduct(id: barcode ?? id.uuidString, name: name, brand: brand, per100g: per100g, barcode: barcode)
+    }
+}
+
 // MARK: - Recipes
+
+/// One ingredient in a recipe: a food plus an amount in grams.
+struct RecipeIngredient: Codable, Identifiable, Hashable {
+    var id = UUID()
+    var name: String
+    var grams: Double
+    var per100g: Nutrients
+
+    var nutrients: Nutrients { per100g.scaled(toGrams: grams) }
+}
 
 struct Recipe: Codable, Identifiable, Hashable {
     var id = UUID()
     var name: String
     var servings: Double
-    var nutrients: Nutrients   // total for the whole recipe
+    var nutrients: Nutrients            // manual total, used when no ingredients
+    var ingredients: [RecipeIngredient] = []
+
+    /// Totals from ingredients when present, otherwise the manual total.
+    var effectiveNutrients: Nutrients {
+        ingredients.isEmpty ? nutrients : ingredients.reduce(Nutrients()) { $0 + $1.nutrients }
+    }
 
     var caloriesPerServing: Double {
-        servings > 0 ? nutrients.calories / servings : nutrients.calories
+        let total = effectiveNutrients.calories
+        return servings > 0 ? total / servings : total
     }
 }
 
@@ -172,6 +208,29 @@ struct UserMetrics: Codable, Hashable {
 
     /// Total daily energy expenditure (maintenance calories).
     var tdee: Double { bmr * activity.factor }
+}
+
+// MARK: - Reminders
+
+/// Daily reminders to log each meal at a chosen time.
+struct MealReminders: Codable, Hashable {
+    var enabled: Bool = false
+    var breakfastEnabled: Bool = true
+    var lunchEnabled: Bool = true
+    var dinnerEnabled: Bool = true
+    var breakfastTime: String = "08:00"
+    var lunchTime: String = "12:30"
+    var dinnerTime: String = "19:00"
+
+    /// Enabled (meal, "HH:mm") pairs when reminders are on.
+    var activeTimes: [(meal: MealType, time: String)] {
+        guard enabled else { return [] }
+        var result: [(MealType, String)] = []
+        if breakfastEnabled { result.append((.breakfast, breakfastTime)) }
+        if lunchEnabled { result.append((.lunch, lunchTime)) }
+        if dinnerEnabled { result.append((.dinner, dinnerTime)) }
+        return result
+    }
 }
 
 struct Goals: Codable, Hashable {

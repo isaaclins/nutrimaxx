@@ -6,5 +6,11 @@
 	<true/>
 	<key>com.apple.developer.healthkit.access</key>
 	<array/>
+	<!--
+	  iCloud key-value sync requires a paid Apple Developer account. Re-add this
+	  key (and the iCloud capability on the App ID) to enable cross-device sync:
+	  <key>com.apple.developer.ubiquity-kvstore-identifier</key>
+	  <string>$(TeamIdentifierPrefix)$(CFBundleIdentifier)</string>
+	-->
 </dict>
 </plist>
