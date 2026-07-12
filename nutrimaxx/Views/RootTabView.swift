@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct RootTabView: View {
+    @EnvironmentObject var store: AppStore
+
     var body: some View {
         TabView {
             DashboardView()
@@ -13,6 +15,13 @@ struct RootTabView: View {
                 .tabItem { Label("Supplements", systemImage: "pills") }
             SettingsView()
                 .tabItem { Label("Settings", systemImage: "gearshape") }
+        }
+        .fullScreenCover(isPresented: Binding(
+            get: { !store.hasOnboarded },
+            set: { _ in }
+        )) {
+            OnboardingView()
+                .environmentObject(store)
         }
     }
 }

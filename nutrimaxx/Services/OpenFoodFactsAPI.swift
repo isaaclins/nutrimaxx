@@ -53,10 +53,34 @@ struct OpenFoodFactsAPI {
         return decoded.products.compactMap { $0.asFoodProduct }
     }
 
+    /// Look up a single product by barcode. Returns nil if not found.
+    func product(barcode: String) async throws -> FoodProduct? {
+        let code = barcode.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !code.isEmpty else { return nil }
+        guard let url = URL(string: "https://world.openfoodfacts.org/api/v2/product/\(code).json?fields=code,product_name,brands,nutriments") else {
+            throw OpenFoodFactsError.badURL
+        }
+        var request = URLRequest(url: url)
+        request.setValue("nutrimaxx/1.0 (iOS)", forHTTPHeaderField: "User-Agent")
+
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            throw OpenFoodFactsError.badResponse
+        }
+        let decoded = try JSONDecoder().decode(ProductResponse.self, from: data)
+        guard decoded.status == 1 else { return nil }
+        return decoded.product?.asFoodProduct
+    }
+
     // MARK: - Decoding
 
     private struct SearchResponse: Decodable {
         let products: [Product]
+    }
+
+    private struct ProductResponse: Decodable {
+        let status: Int
+        let product: Product?
     }
 
     private struct Product: Decodable {

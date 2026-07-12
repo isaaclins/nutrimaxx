@@ -11,6 +11,7 @@ struct SettingsView: View {
                 healthData
                 preferences
                 goals
+                about
             }
             .navigationTitle("Settings")
         }
@@ -45,7 +46,7 @@ struct SettingsView: View {
     private var healthData: some View {
         Section("Health Data") {
             LabeledContent("Latest Weight") {
-                Text(health.latestWeightKg.map { "\(Format.grams($0)) kg" } ?? "--")
+                Text(health.latestWeightKg.map { Format.weight($0, units: store.units) } ?? "--")
             }
             LabeledContent("Active Energy Today") {
                 Text(health.activeEnergyTodayKcal.map { "\(Format.kcal($0)) kcal" } ?? "--")
@@ -72,6 +73,19 @@ struct SettingsView: View {
             goalField("Protein", $store.goals.protein, unit: "g")
             goalField("Carbs", $store.goals.carbs, unit: "g")
             goalField("Fat", $store.goals.fat, unit: "g")
+
+            Button("Use suggested targets for \(store.goals.type.rawValue)") {
+                var suggested = Goals.suggested(for: store.goals.type, weightKg: health.latestWeightKg)
+                suggested.type = store.goals.type
+                store.goals = suggested
+            }
+        }
+    }
+
+    private var about: some View {
+        Section("About") {
+            LabeledContent("Version", value: "1.0.0")
+            Button("Replay Onboarding") { store.hasOnboarded = false }
         }
     }
 

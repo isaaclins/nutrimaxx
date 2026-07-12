@@ -19,6 +19,14 @@ enum Format {
     static func grams(_ value: Double) -> String {
         String(format: "%.1f", value)
     }
+
+    /// Weight in the user's unit system: kg as-is, or converted to lb.
+    static func weight(_ kg: Double, units: UnitSystem) -> String {
+        switch units {
+        case .metric: return "\(grams(kg)) kg"
+        case .imperial: return "\(grams(kg * 2.2046226218)) lb"
+        }
+    }
 }
 
 /// Reusable "not implemented yet" alert modifier.

@@ -4,7 +4,7 @@ struct RecipesView: View {
     @EnvironmentObject var store: AppStore
 
     @State private var query = ""
-    @State private var showAdd = false
+    @State private var editor: RecipeEditorTarget?
 
     private var filtered: [Recipe] {
         let text = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -16,16 +16,20 @@ struct RecipesView: View {
         NavigationStack {
             List {
                 ForEach(filtered) { recipe in
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(recipe.name)
-                            Text("\(Format.grams(recipe.servings)) servings")
-                                .font(.caption)
+                    Button {
+                        editor = .edit(recipe)
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(recipe.name).foregroundStyle(.primary)
+                                Text("\(Format.grams(recipe.servings)) servings")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Text("\(Format.kcal(recipe.caloriesPerServing)) kcal/serv")
                                 .foregroundStyle(.secondary)
                         }
-                        Spacer()
-                        Text("\(Format.kcal(recipe.caloriesPerServing)) kcal/serv")
-                            .foregroundStyle(.secondary)
                     }
                 }
                 .onDelete { store.deleteRecipes(at: $0) }
@@ -40,26 +44,78 @@ struct RecipesView: View {
             .navigationTitle("Recipes")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button { showAdd = true } label: { Image(systemName: "plus") }
+                    Button { editor = .create } label: { Image(systemName: "plus") }
                 }
             }
-            .sheet(isPresented: $showAdd) {
-                AddRecipeView().environmentObject(store)
+            .sheet(item: $editor) { target in
+                RecipeEditorView(target: target).environmentObject(store)
             }
         }
     }
 }
 
-struct AddRecipeView: View {
+enum RecipeEditorTarget: Identifiable {
+    case create
+    case edit(Recipe)
+    var id: String {
+        switch self {
+        case .create: return "create"
+        case .edit(let r): return r.id.uuidString
+        }
+    }
+}
+
+/// Create or edit a recipe, and optionally log servings of it to a meal.
+struct RecipeEditorView: View {
     @EnvironmentObject var store: AppStore
     @Environment(\.dismiss) private var dismiss
 
-    @State private var name = ""
-    @State private var servingsText = "1"
-    @State private var caloriesText = ""
-    @State private var proteinText = ""
-    @State private var carbsText = ""
-    @State private var fatText = ""
+    private let existing: Recipe?
+
+    @State private var name: String
+    @State private var servingsText: String
+    @State private var caloriesText: String
+    @State private var proteinText: String
+    @State private var carbsText: String
+    @State private var fatText: String
+
+    @State private var logMeal: MealType = .dinner
+    @State private var logServingsText = "1"
+
+    init(target: RecipeEditorTarget) {
+        switch target {
+        case .create:
+            existing = nil
+            _name = State(initialValue: "")
+            _servingsText = State(initialValue: "1")
+            _caloriesText = State(initialValue: "")
+            _proteinText = State(initialValue: "")
+            _carbsText = State(initialValue: "")
+            _fatText = State(initialValue: "")
+        case .edit(let recipe):
+            existing = recipe
+            _name = State(initialValue: recipe.name)
+            _servingsText = State(initialValue: Format.grams(recipe.servings))
+            _caloriesText = State(initialValue: Format.grams(recipe.nutrients.calories))
+            _proteinText = State(initialValue: Format.grams(recipe.nutrients.protein))
+            _carbsText = State(initialValue: Format.grams(recipe.nutrients.carbs))
+            _fatText = State(initialValue: Format.grams(recipe.nutrients.fat))
+        }
+    }
+
+    private var builtRecipe: Recipe {
+        Recipe(
+            id: existing?.id ?? UUID(),
+            name: name.trimmingCharacters(in: .whitespaces),
+            servings: Double(servingsText) ?? 1,
+            nutrients: Nutrients(
+                calories: Double(caloriesText) ?? 0,
+                protein: Double(proteinText) ?? 0,
+                carbs: Double(carbsText) ?? 0,
+                fat: Double(fatText) ?? 0
+            )
+        )
+    }
 
     var body: some View {
         NavigationStack {
@@ -80,23 +136,40 @@ struct AddRecipeView: View {
                     field("Carbs", $carbsText, unit: "g")
                     field("Fat", $fatText, unit: "g")
                 }
+
+                if existing != nil {
+                    Section("Log to a meal") {
+                        Picker("Meal", selection: $logMeal) {
+                            ForEach(MealType.allCases) { Text($0.rawValue.capitalized).tag($0) }
+                        }
+                        HStack {
+                            Text("Servings")
+                            Spacer()
+                            TextField("1", text: $logServingsText)
+                                .keyboardType(.decimalPad)
+                                .multilineTextAlignment(.trailing)
+                        }
+                        Button("Add to Log") {
+                            store.logRecipe(builtRecipe, servings: Double(logServingsText) ?? 1,
+                                            to: logMeal, on: store.selectedDate)
+                            dismiss()
+                        }
+                    }
+                    Section {
+                        Button("Delete Recipe", role: .destructive) {
+                            if let existing { store.deleteRecipes(at: IndexSet(store.recipes.firstIndex(where: { $0.id == existing.id }).map { [$0] } ?? [])) }
+                            dismiss()
+                        }
+                    }
+                }
             }
-            .navigationTitle("New Recipe")
+            .navigationTitle(existing == nil ? "New Recipe" : "Edit Recipe")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        let recipe = Recipe(
-                            name: name.trimmingCharacters(in: .whitespaces),
-                            servings: Double(servingsText) ?? 1,
-                            nutrients: Nutrients(
-                                calories: Double(caloriesText) ?? 0,
-                                protein: Double(proteinText) ?? 0,
-                                carbs: Double(carbsText) ?? 0,
-                                fat: Double(fatText) ?? 0
-                            )
-                        )
-                        store.addRecipe(recipe)
+                        if existing == nil { store.addRecipe(builtRecipe) }
+                        else { store.updateRecipe(builtRecipe) }
                         dismiss()
                     }
                     .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)

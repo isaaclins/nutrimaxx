@@ -4,7 +4,7 @@ struct SupplementsView: View {
     @EnvironmentObject var store: AppStore
 
     @State private var query = ""
-    @State private var showAdd = false
+    @State private var editor: SupplementEditorTarget?
 
     private var filtered: [Supplement] {
         let text = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -24,15 +24,21 @@ struct SupplementsView: View {
                         }
                         .buttonStyle(.plain)
 
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(supplement.name)
-                            Text(supplement.frequency)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                        Button {
+                            editor = .edit(supplement)
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(supplement.name).foregroundStyle(.primary)
+                                    Text(supplement.frequency)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Text(supplement.time)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
-                        Spacer()
-                        Text(supplement.time)
-                            .foregroundStyle(.secondary)
                     }
                 }
                 .onDelete { store.deleteSupplements(at: $0) }
@@ -47,25 +53,53 @@ struct SupplementsView: View {
             .navigationTitle("Supplements")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button { showAdd = true } label: { Image(systemName: "plus") }
+                    Button { editor = .create } label: { Image(systemName: "plus") }
                 }
             }
-            .sheet(isPresented: $showAdd) {
-                AddSupplementView().environmentObject(store)
+            .sheet(item: $editor) { target in
+                SupplementEditorView(target: target).environmentObject(store)
             }
         }
     }
 }
 
-struct AddSupplementView: View {
+enum SupplementEditorTarget: Identifiable {
+    case create
+    case edit(Supplement)
+    var id: String {
+        switch self {
+        case .create: return "create"
+        case .edit(let s): return s.id.uuidString
+        }
+    }
+}
+
+struct SupplementEditorView: View {
     @EnvironmentObject var store: AppStore
     @Environment(\.dismiss) private var dismiss
 
-    @State private var name = ""
-    @State private var frequency = "Daily"
-    @State private var time = Date()
+    private let existing: Supplement?
+
+    @State private var name: String
+    @State private var frequency: String
+    @State private var time: Date
 
     private let frequencies = ["Daily", "Twice Daily", "Weekly", "As Needed"]
+
+    init(target: SupplementEditorTarget) {
+        switch target {
+        case .create:
+            existing = nil
+            _name = State(initialValue: "")
+            _frequency = State(initialValue: "Daily")
+            _time = State(initialValue: Self.defaultTime())
+        case .edit(let supplement):
+            existing = supplement
+            _name = State(initialValue: supplement.name)
+            _frequency = State(initialValue: supplement.frequency)
+            _time = State(initialValue: Self.parse(supplement.time))
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -77,28 +111,62 @@ struct AddSupplementView: View {
                     }
                     DatePicker("Time", selection: $time, displayedComponents: .hourAndMinute)
                 }
+                if existing != nil {
+                    Section {
+                        Button("Delete Supplement", role: .destructive) {
+                            if let idx = store.supplements.firstIndex(where: { $0.id == existing?.id }) {
+                                store.deleteSupplements(at: IndexSet(integer: idx))
+                            }
+                            dismiss()
+                        }
+                    }
+                }
             }
-            .navigationTitle("New Supplement")
+            .navigationTitle(existing == nil ? "New Supplement" : "Edit Supplement")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        let formatter = DateFormatter()
-                        formatter.dateFormat = "HH:mm"
-                        let supplement = Supplement(
-                            name: name.trimmingCharacters(in: .whitespaces),
-                            frequency: frequency,
-                            time: formatter.string(from: time)
-                        )
-                        store.addSupplement(supplement)
-                        dismiss()
-                    }
-                    .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+                    Button("Save") { save() }
+                        .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
             }
         }
+    }
+
+    private func save() {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        let timeString = formatter.string(from: time)
+
+        if let existing {
+            var updated = existing
+            updated.name = name.trimmingCharacters(in: .whitespaces)
+            updated.frequency = frequency
+            updated.time = timeString
+            store.updateSupplement(updated)
+        } else {
+            let supplement = Supplement(
+                name: name.trimmingCharacters(in: .whitespaces),
+                frequency: frequency,
+                time: timeString
+            )
+            store.addSupplement(supplement)
+        }
+        // Ask for notification permission if we still can (dismissed onboarding, etc.).
+        Task { await NotificationManager.shared.requestAuthorizationIfNeeded() }
+        dismiss()
+    }
+
+    private static func defaultTime() -> Date {
+        Calendar.current.date(bySettingHour: 8, minute: 0, second: 0, of: Date()) ?? Date()
+    }
+
+    private static func parse(_ string: String) -> Date {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter.date(from: string) ?? defaultTime()
     }
 }

@@ -10,6 +10,8 @@ struct DashboardView: View {
                     Text(greeting())
                         .font(.largeTitle.bold())
 
+                    DayNavigator()
+
                     // Calories consumed
                     VStack(spacing: 4) {
                         Text(Format.grouped(store.consumed.calories))
@@ -90,5 +92,30 @@ struct DashboardView: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(.secondary.opacity(0.3)))
+    }
+}
+
+/// Shared previous/next-day header used by Dashboard and Log.
+struct DayNavigator: View {
+    @EnvironmentObject var store: AppStore
+
+    private var label: String {
+        if store.isSelectedDateToday() { return "Today" }
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        return formatter.string(from: store.selectedDate)
+    }
+
+    var body: some View {
+        HStack {
+            Button { store.goToPreviousDay() } label: { Image(systemName: "chevron.left") }
+            Spacer()
+            Button { store.goToToday() } label: { Text(label).font(.subheadline.bold()) }
+                .buttonStyle(.plain)
+            Spacer()
+            Button { store.goToNextDay() } label: { Image(systemName: "chevron.right") }
+                .disabled(store.isSelectedDateToday())
+        }
+        .frame(maxWidth: .infinity)
     }
 }

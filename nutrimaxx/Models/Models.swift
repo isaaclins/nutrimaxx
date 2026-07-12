@@ -53,6 +53,9 @@ struct FoodEntry: Codable, Identifiable, Hashable {
     var grams: Double            // amount logged
     var nutrients: Nutrients     // already scaled to `grams`
     var date: Date = .init()
+    /// Per-100g values this entry was logged from (OpenFoodFacts). Lets us
+    /// re-scale nutrients when the amount is edited. Nil for manual entries.
+    var basePer100g: Nutrients? = nil
 }
 
 // MARK: - Recipes
@@ -75,7 +78,21 @@ struct Supplement: Codable, Identifiable, Hashable {
     var name: String
     var frequency: String   // e.g. "Daily"
     var time: String        // e.g. "08:00"
-    var takenToday: Bool = false
+    /// Day-start dates on which this supplement was marked taken (the log/history).
+    var takenDates: [Date] = []
+
+    func isTaken(on day: Date) -> Bool {
+        takenDates.contains { Calendar.current.isDate($0, inSameDayAs: day) }
+    }
+
+    var takenToday: Bool { isTaken(on: Date()) }
+
+    /// Parsed hour/minute from the "HH:mm" time string, for notifications.
+    var hourMinute: (hour: Int, minute: Int)? {
+        let parts = time.split(separator: ":").compactMap { Int($0) }
+        guard parts.count == 2 else { return nil }
+        return (parts[0], parts[1])
+    }
 }
 
 // MARK: - Goals & preferences
@@ -99,4 +116,33 @@ struct Goals: Codable, Hashable {
     var protein: Double = 150
     var carbs: Double = 200
     var fat: Double = 65
+
+    /// Suggested targets for a goal type, optionally scaled to body weight.
+    /// Protein is set per kg of bodyweight; the rest follows typical splits.
+    static func suggested(for type: GoalType, weightKg: Double? = nil) -> Goals {
+        let weight = weightKg ?? 75
+        switch type {
+        case .buildMuscle:
+            let calories = weight * 38
+            let protein = weight * 2.2
+            let fat = (calories * 0.25) / 9
+            let carbs = (calories - protein * 4 - fat * 9) / 4
+            return Goals(type: type, calories: calories.rounded(), protein: protein.rounded(),
+                         carbs: carbs.rounded(), fat: fat.rounded())
+        case .loseFat:
+            let calories = weight * 26
+            let protein = weight * 2.2
+            let fat = (calories * 0.30) / 9
+            let carbs = (calories - protein * 4 - fat * 9) / 4
+            return Goals(type: type, calories: calories.rounded(), protein: protein.rounded(),
+                         carbs: carbs.rounded(), fat: fat.rounded())
+        case .maintain:
+            let calories = weight * 32
+            let protein = weight * 1.8
+            let fat = (calories * 0.28) / 9
+            let carbs = (calories - protein * 4 - fat * 9) / 4
+            return Goals(type: type, calories: calories.rounded(), protein: protein.rounded(),
+                         carbs: carbs.rounded(), fat: fat.rounded())
+        }
+    }
 }

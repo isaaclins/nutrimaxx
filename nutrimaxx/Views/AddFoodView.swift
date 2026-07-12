@@ -6,6 +6,7 @@ struct AddFoodView: View {
     @Environment(\.dismiss) private var dismiss
 
     var meal: MealType
+    var date: Date
 
     @State private var query = ""
     @State private var results: [FoodProduct] = []
@@ -59,7 +60,7 @@ struct AddFoodView: View {
                 }
             }
             .sheet(item: $selected) { product in
-                LogAmountView(product: product, meal: meal) { dismiss() }
+                LogAmountView(product: product, meal: meal, date: date) { dismiss() }
                     .environmentObject(store)
             }
         }
@@ -101,10 +102,12 @@ struct AddFoodView: View {
 /// Choose an amount for a selected product and confirm logging it.
 struct LogAmountView: View {
     @EnvironmentObject var store: AppStore
+    @EnvironmentObject var health: HealthManager
     @Environment(\.dismiss) private var dismiss
 
     let product: FoodProduct
     let meal: MealType
+    var date: Date
     var onLogged: () -> Void
 
     @State private var gramsText = "100"
@@ -138,8 +141,11 @@ struct LogAmountView: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Add") {
-                        store.addEntry(FoodEntry(name: product.name, meal: meal,
-                                                 grams: grams, nutrients: scaled))
+                        let entry = FoodEntry(name: product.name, meal: meal, grams: grams,
+                                              nutrients: scaled, date: date,
+                                              basePer100g: product.per100g)
+                        store.addEntry(entry)
+                        health.saveNutrition(for: entry)
                         onLogged()
                     }
                     .disabled(grams <= 0)
