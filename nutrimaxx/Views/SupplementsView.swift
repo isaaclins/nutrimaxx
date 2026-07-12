@@ -37,6 +37,12 @@ struct SupplementsView: View {
                 }
                 .onDelete { store.deleteSupplements(at: $0) }
             }
+            .overlay {
+                if store.supplements.isEmpty {
+                    ContentUnavailableView("No Supplements", systemImage: "pills",
+                                           description: Text("Tap + to add a supplement."))
+                }
+            }
             .searchable(text: $query, prompt: "Search")
             .navigationTitle("Supplements")
             .toolbar {

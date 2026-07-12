@@ -30,6 +30,12 @@ struct RecipesView: View {
                 }
                 .onDelete { store.deleteRecipes(at: $0) }
             }
+            .overlay {
+                if store.recipes.isEmpty {
+                    ContentUnavailableView("No Recipes", systemImage: "book",
+                                           description: Text("Tap + to create your first recipe."))
+                }
+            }
             .searchable(text: $query, prompt: "Search")
             .navigationTitle("Recipes")
             .toolbar {

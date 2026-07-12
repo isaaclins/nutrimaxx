@@ -12,7 +12,7 @@ final class AppStore: ObservableObject {
     @Published var dietaryNotes: String { didSet { save() } }
     @Published var appleHealthConnected: Bool { didSet { save() } }
 
-    private let defaultsKey = "nutrimaxx.state.v1"
+    private let defaultsKey = "nutrimaxx.state.v2"
 
     init() {
         if let saved = Self.load() {
@@ -24,14 +24,15 @@ final class AppStore: ObservableObject {
             dietaryNotes = saved.dietaryNotes
             appleHealthConnected = saved.appleHealthConnected
         } else {
-            let seed = Self.seed()
-            entries = seed.entries
-            recipes = seed.recipes
-            supplements = seed.supplements
-            goals = seed.goals
-            units = seed.units
-            dietaryNotes = seed.dietaryNotes
-            appleHealthConnected = seed.appleHealthConnected
+            // Fresh install: start empty. Users add their own foods, recipes,
+            // supplements, and connect Apple Health from Settings.
+            entries = []
+            recipes = []
+            supplements = []
+            goals = Goals()
+            units = .metric
+            dietaryNotes = ""
+            appleHealthConnected = false
         }
     }
 
@@ -89,35 +90,8 @@ final class AppStore: ObservableObject {
     }
 
     private static func load() -> Snapshot? {
-        guard let data = UserDefaults.standard.data(forKey: "nutrimaxx.state.v1"),
+        guard let data = UserDefaults.standard.data(forKey: "nutrimaxx.state.v2"),
               let snap = try? JSONDecoder().decode(Snapshot.self, from: data) else { return nil }
         return snap
-    }
-
-    // MARK: - Seed data (matches the reference screenshots)
-
-    private static func seed() -> Snapshot {
-        let entries: [FoodEntry] = [
-            FoodEntry(name: "Wholemeal Bread", meal: .breakfast, grams: 120,
-                      nutrients: Nutrients(calories: 342, protein: 12, carbs: 60, fat: 4)),
-            FoodEntry(name: "Nutella", meal: .breakfast, grams: 25,
-                      nutrients: Nutrients(calories: 135, protein: 1.5, carbs: 14, fat: 8)),
-            FoodEntry(name: "Hackfleisch Rind", meal: .lunch, grams: 200,
-                      nutrients: Nutrients(calories: 627, protein: 50, carbs: 0, fat: 46)),
-            FoodEntry(name: "Rice Basmati", meal: .lunch, grams: 75,
-                      nutrients: Nutrients(calories: 281, protein: 6, carbs: 60, fat: 1)),
-            FoodEntry(name: "Lasagne", meal: .dinner, grams: 400,
-                      nutrients: Nutrients(calories: 1030, protein: 81.2, carbs: 60.6, fat: 54.8)),
-        ]
-        let recipes: [Recipe] = [
-            Recipe(name: "Lasagne", servings: 1.0,
-                   nutrients: Nutrients(calories: 1030, protein: 81.2, carbs: 60.6, fat: 54.8)),
-        ]
-        let supplements: [Supplement] = [
-            Supplement(name: "Creatine", frequency: "Daily", time: "08:00", takenToday: true),
-        ]
-        return Snapshot(entries: entries, recipes: recipes, supplements: supplements,
-                        goals: Goals(), units: .metric, dietaryNotes: "",
-                        appleHealthConnected: true)
     }
 }

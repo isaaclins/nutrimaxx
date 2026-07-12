@@ -94,9 +94,9 @@ enum UnitSystem: String, Codable, CaseIterable, Identifiable {
 }
 
 struct Goals: Codable, Hashable {
-    var type: GoalType = .buildMuscle
-    var calories: Double = 2927
-    var protein: Double = 256.2
-    var carbs: Double = 256.2
-    var fat: Double = 97.6
+    var type: GoalType = .maintain
+    var calories: Double = 2000
+    var protein: Double = 150
+    var carbs: Double = 200
+    var fat: Double = 65
 }

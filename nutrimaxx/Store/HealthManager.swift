@@ -7,8 +7,8 @@ import HealthKit
 @MainActor
 final class HealthManager: ObservableObject {
     @Published var isAuthorized = false
-    @Published var latestWeightKg: Double? = 72.5
-    @Published var activeEnergyTodayKcal: Double? = 78
+    @Published var latestWeightKg: Double?
+    @Published var activeEnergyTodayKcal: Double?
 
     private let store = HKHealthStore()
 
