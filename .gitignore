@@ -3,3 +3,9 @@ node_modules/
 build/
 dist/
 public/
+
+# Xcode / build
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.png
