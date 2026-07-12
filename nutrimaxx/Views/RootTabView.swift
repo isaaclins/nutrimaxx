@@ -2,20 +2,19 @@ import SwiftUI
 
 struct RootTabView: View {
     @EnvironmentObject var store: AppStore
-    @State private var selection = UserDefaults.standard.integer(forKey: "debugTab")
 
     var body: some View {
-        TabView(selection: $selection) {
+        TabView {
             DashboardView()
-                .tabItem { Label("Dashboard", systemImage: "square.grid.2x2") }.tag(0)
+                .tabItem { Label("Dashboard", systemImage: "square.grid.2x2") }
             RecipesView()
-                .tabItem { Label("Recipes", systemImage: "book") }.tag(1)
+                .tabItem { Label("Recipes", systemImage: "book") }
             LogView()
-                .tabItem { Label("Log", systemImage: "plus.circle") }.tag(2)
+                .tabItem { Label("Log", systemImage: "plus.circle") }
             SupplementsView()
-                .tabItem { Label("Supplements", systemImage: "pills") }.tag(3)
+                .tabItem { Label("Supplements", systemImage: "pills") }
             SettingsView()
-                .tabItem { Label("Settings", systemImage: "gearshape") }.tag(4)
+                .tabItem { Label("Settings", systemImage: "gearshape") }
         }
         .fullScreenCover(isPresented: Binding(
             get: { !store.hasOnboarded },
