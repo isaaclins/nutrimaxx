@@ -41,17 +41,35 @@ struct BarcodeScannerView: UIViewControllerRepresentable {
     }
 }
 
-/// Hosts the capture session and a Cancel button.
+/// Hosts the capture session and a Cancel button. Requests camera access first
+/// and only configures/starts the session once access is granted, so the
+/// preview never shows a permanent black frame.
 final class ScannerViewController: UIViewController {
     weak var coordinator: BarcodeScannerView.Coordinator?
+
     private let session = AVCaptureSession()
+    private let sessionQueue = DispatchQueue(label: "nutrimaxx.scanner.session")
     private var previewLayer: AVCaptureVideoPreviewLayer?
+    private var isConfigured = false
+
+    private lazy var statusLabel: UILabel = {
+        let label = UILabel()
+        label.textColor = .white
+        label.textAlignment = .center
+        label.numberOfLines = 0
+        label.font = .systemFont(ofSize: 16)
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
 
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .black
-        configureSession()
+        addOverlayControls()
+        requestAccessThenConfigure()
+    }
 
+    private func addOverlayControls() {
         let cancel = UIButton(type: .system)
         cancel.setTitle("Cancel", for: .normal)
         cancel.setTitleColor(.white, for: .normal)
@@ -59,33 +77,82 @@ final class ScannerViewController: UIViewController {
         cancel.translatesAutoresizingMaskIntoConstraints = false
         cancel.addTarget(self, action: #selector(cancelTapped), for: .touchUpInside)
         view.addSubview(cancel)
+
+        view.addSubview(statusLabel)
         NSLayoutConstraint.activate([
             cancel.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -24),
             cancel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            statusLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            statusLabel.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+            statusLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 32),
+            statusLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -32),
         ])
     }
 
-    private func configureSession() {
-        guard let device = AVCaptureDevice.default(for: .video),
-              let input = try? AVCaptureDeviceInput(device: device),
-              session.canAddInput(input) else { return }
-        session.addInput(input)
+    private func requestAccessThenConfigure() {
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized:
+            configureAndStart()
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
+                DispatchQueue.main.async {
+                    if granted { self?.configureAndStart() }
+                    else { self?.showStatus("Camera access denied.") }
+                }
+            }
+        default:
+            showStatus("Camera access is off. Enable it in Settings > nutrimaxx.")
+        }
+    }
 
-        let output = AVCaptureMetadataOutput()
-        guard session.canAddOutput(output) else { return }
-        session.addOutput(output)
-        output.setMetadataObjectsDelegate(coordinator, queue: .main)
-        output.metadataObjectTypes = [.ean13, .ean8, .upce, .code128, .code39, .qr]
+    private func configureAndStart() {
+        statusLabel.text = nil
 
+        // Build the preview layer on the main thread so it has correct bounds.
         let preview = AVCaptureVideoPreviewLayer(session: session)
         preview.frame = view.layer.bounds
         preview.videoGravity = .resizeAspectFill
         view.layer.insertSublayer(preview, at: 0)
         previewLayer = preview
 
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            self?.session.startRunning()
+        sessionQueue.async { [weak self] in
+            guard let self, !self.isConfigured else {
+                self?.startRunningIfNeeded()
+                return
+            }
+            self.session.beginConfiguration()
+
+            guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
+                  let input = try? AVCaptureDeviceInput(device: device),
+                  self.session.canAddInput(input) else {
+                self.session.commitConfiguration()
+                DispatchQueue.main.async { self.showStatus("No camera available.") }
+                return
+            }
+            self.session.addInput(input)
+
+            let output = AVCaptureMetadataOutput()
+            guard self.session.canAddOutput(output) else {
+                self.session.commitConfiguration()
+                DispatchQueue.main.async { self.showStatus("Scanner unavailable.") }
+                return
+            }
+            self.session.addOutput(output)
+            output.setMetadataObjectsDelegate(self.coordinator, queue: .main)
+            output.metadataObjectTypes = [.ean13, .ean8, .upce, .code128, .code39, .qr]
+
+            self.session.commitConfiguration()
+            self.isConfigured = true
+            self.session.startRunning()
         }
+    }
+
+    private func startRunningIfNeeded() {
+        if !session.isRunning { session.startRunning() }
+    }
+
+    private func showStatus(_ message: String) {
+        statusLabel.text = message
     }
 
     override func viewDidLayoutSubviews() {
@@ -95,7 +162,10 @@ final class ScannerViewController: UIViewController {
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
-        if session.isRunning { session.stopRunning() }
+        sessionQueue.async { [weak self] in
+            guard let self, self.session.isRunning else { return }
+            self.session.stopRunning()
+        }
     }
 
     @objc private func cancelTapped() {
