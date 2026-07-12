@@ -110,6 +110,60 @@ enum UnitSystem: String, Codable, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+enum BiologicalSex: String, Codable, CaseIterable, Identifiable {
+    case male = "Male"
+    case female = "Female"
+    var id: String { rawValue }
+}
+
+enum ActivityLevel: String, Codable, CaseIterable, Identifiable {
+    case sedentary = "Sedentary"
+    case light = "Lightly Active"
+    case moderate = "Moderately Active"
+    case active = "Active"
+    case veryActive = "Very Active"
+    var id: String { rawValue }
+
+    /// TDEE multiplier applied to BMR.
+    var factor: Double {
+        switch self {
+        case .sedentary: return 1.2
+        case .light: return 1.375
+        case .moderate: return 1.55
+        case .active: return 1.725
+        case .veryActive: return 1.9
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .sedentary: return "Little or no exercise"
+        case .light: return "Exercise 1-3 days/week"
+        case .moderate: return "Exercise 3-5 days/week"
+        case .active: return "Exercise 6-7 days/week"
+        case .veryActive: return "Hard exercise or physical job"
+        }
+    }
+}
+
+/// Body metrics used to estimate calorie and macro targets.
+struct UserMetrics: Codable, Hashable {
+    var age: Int = 30
+    var sex: BiologicalSex = .male
+    var heightCm: Double = 175
+    var weightKg: Double = 75
+    var activity: ActivityLevel = .moderate
+
+    /// Basal metabolic rate via the Mifflin-St Jeor equation.
+    var bmr: Double {
+        let base = 10 * weightKg + 6.25 * heightCm - 5 * Double(age)
+        return base + (sex == .male ? 5 : -161)
+    }
+
+    /// Total daily energy expenditure (maintenance calories).
+    var tdee: Double { bmr * activity.factor }
+}
+
 struct Goals: Codable, Hashable {
     var type: GoalType = .maintain
     var calories: Double = 2000
@@ -117,32 +171,36 @@ struct Goals: Codable, Hashable {
     var carbs: Double = 200
     var fat: Double = 65
 
-    /// Suggested targets for a goal type, optionally scaled to body weight.
-    /// Protein is set per kg of bodyweight; the rest follows typical splits.
-    static func suggested(for type: GoalType, weightKg: Double? = nil) -> Goals {
-        let weight = weightKg ?? 75
+    /// Suggested targets computed from body metrics (TDEE) and the goal type.
+    /// Calories adjust TDEE up/down; protein scales with bodyweight; fat is a
+    /// share of calories; carbs fill the remainder.
+    static func suggested(for type: GoalType, metrics: UserMetrics) -> Goals {
+        let tdee = metrics.tdee
+        let weight = metrics.weightKg
+
+        let calories: Double
+        let proteinPerKg: Double
+        let fatShare: Double
         switch type {
         case .buildMuscle:
-            let calories = weight * 38
-            let protein = weight * 2.2
-            let fat = (calories * 0.25) / 9
-            let carbs = (calories - protein * 4 - fat * 9) / 4
-            return Goals(type: type, calories: calories.rounded(), protein: protein.rounded(),
-                         carbs: carbs.rounded(), fat: fat.rounded())
+            calories = tdee * 1.10
+            proteinPerKg = 2.2
+            fatShare = 0.25
         case .loseFat:
-            let calories = weight * 26
-            let protein = weight * 2.2
-            let fat = (calories * 0.30) / 9
-            let carbs = (calories - protein * 4 - fat * 9) / 4
-            return Goals(type: type, calories: calories.rounded(), protein: protein.rounded(),
-                         carbs: carbs.rounded(), fat: fat.rounded())
+            calories = tdee * 0.80
+            proteinPerKg = 2.2
+            fatShare = 0.30
         case .maintain:
-            let calories = weight * 32
-            let protein = weight * 1.8
-            let fat = (calories * 0.28) / 9
-            let carbs = (calories - protein * 4 - fat * 9) / 4
-            return Goals(type: type, calories: calories.rounded(), protein: protein.rounded(),
-                         carbs: carbs.rounded(), fat: fat.rounded())
+            calories = tdee
+            proteinPerKg = 1.8
+            fatShare = 0.28
         }
+
+        let protein = weight * proteinPerKg
+        let fat = (calories * fatShare) / 9
+        let carbs = max((calories - protein * 4 - fat * 9) / 4, 0)
+
+        return Goals(type: type, calories: calories.rounded(), protein: protein.rounded(),
+                     carbs: carbs.rounded(), fat: fat.rounded())
     }
 }

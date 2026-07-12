@@ -8,6 +8,7 @@ final class AppStore: ObservableObject {
     @Published var recipes: [Recipe] { didSet { save() } }
     @Published var supplements: [Supplement] { didSet { save(); rescheduleNotifications() } }
     @Published var goals: Goals { didSet { save() } }
+    @Published var metrics: UserMetrics { didSet { save() } }
     @Published var units: UnitSystem { didSet { save() } }
     @Published var dietaryNotes: String { didSet { save() } }
     @Published var appleHealthConnected: Bool { didSet { save() } }
@@ -16,7 +17,7 @@ final class AppStore: ObservableObject {
     /// Currently viewed day (not persisted). Dashboard and Log follow this.
     @Published var selectedDate: Date = Calendar.current.startOfDay(for: Date())
 
-    private let defaultsKey = "nutrimaxx.state.v3"
+    private let defaultsKey = "nutrimaxx.state.v4"
 
     init() {
         if let saved = Self.load() {
@@ -24,6 +25,7 @@ final class AppStore: ObservableObject {
             recipes = saved.recipes
             supplements = saved.supplements
             goals = saved.goals
+            metrics = saved.metrics
             units = saved.units
             dietaryNotes = saved.dietaryNotes
             appleHealthConnected = saved.appleHealthConnected
@@ -35,6 +37,7 @@ final class AppStore: ObservableObject {
             recipes = []
             supplements = []
             goals = Goals()
+            metrics = UserMetrics()
             units = .metric
             dietaryNotes = ""
             appleHealthConnected = false
@@ -157,6 +160,7 @@ final class AppStore: ObservableObject {
         var recipes: [Recipe]
         var supplements: [Supplement]
         var goals: Goals
+        var metrics: UserMetrics
         var units: UnitSystem
         var dietaryNotes: String
         var appleHealthConnected: Bool
@@ -165,7 +169,7 @@ final class AppStore: ObservableObject {
 
     private func snapshot() -> Snapshot {
         Snapshot(entries: entries, recipes: recipes, supplements: supplements,
-                 goals: goals, units: units, dietaryNotes: dietaryNotes,
+                 goals: goals, metrics: metrics, units: units, dietaryNotes: dietaryNotes,
                  appleHealthConnected: appleHealthConnected, hasOnboarded: hasOnboarded)
     }
 
@@ -175,7 +179,7 @@ final class AppStore: ObservableObject {
     }
 
     private static func load() -> Snapshot? {
-        guard let data = UserDefaults.standard.data(forKey: "nutrimaxx.state.v3"),
+        guard let data = UserDefaults.standard.data(forKey: "nutrimaxx.state.v4"),
               let snap = try? JSONDecoder().decode(Snapshot.self, from: data) else { return nil }
         return snap
     }

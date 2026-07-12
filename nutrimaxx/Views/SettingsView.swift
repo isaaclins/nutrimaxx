@@ -9,6 +9,7 @@ struct SettingsView: View {
             Form {
                 integrations
                 healthData
+                bodyMetrics
                 preferences
                 goals
                 about
@@ -54,6 +55,21 @@ struct SettingsView: View {
         }
     }
 
+    private var bodyMetrics: some View {
+        Section("Body Metrics") {
+            Picker("Sex", selection: $store.metrics.sex) {
+                ForEach(BiologicalSex.allCases) { Text($0.rawValue).tag($0) }
+            }
+            Stepper("Age: \(store.metrics.age) yr", value: $store.metrics.age, in: 13...100)
+            metricField("Height", $store.metrics.heightCm, unit: "cm")
+            metricField("Weight", $store.metrics.weightKg, unit: "kg")
+            Picker("Activity", selection: $store.metrics.activity) {
+                ForEach(ActivityLevel.allCases) { Text($0.rawValue).tag($0) }
+            }
+            LabeledContent("Maintenance", value: "\(Format.kcal(store.metrics.tdee)) kcal")
+        }
+    }
+
     private var preferences: some View {
         Section("Preferences") {
             Picker("Units", selection: $store.units) {
@@ -74,8 +90,8 @@ struct SettingsView: View {
             goalField("Carbs", $store.goals.carbs, unit: "g")
             goalField("Fat", $store.goals.fat, unit: "g")
 
-            Button("Use suggested targets for \(store.goals.type.rawValue)") {
-                var suggested = Goals.suggested(for: store.goals.type, weightKg: health.latestWeightKg)
+            Button("Recalculate from metrics for \(store.goals.type.rawValue)") {
+                var suggested = Goals.suggested(for: store.goals.type, metrics: store.metrics)
                 suggested.type = store.goals.type
                 store.goals = suggested
             }
@@ -86,6 +102,18 @@ struct SettingsView: View {
         Section("About") {
             LabeledContent("Version", value: "1.0.0")
             Button("Replay Onboarding") { store.hasOnboarded = false }
+        }
+    }
+
+    private func metricField(_ label: String, _ value: Binding<Double>, unit: String) -> some View {
+        HStack {
+            Text(label)
+            Spacer()
+            TextField(label, value: value, format: .number)
+                .keyboardType(.decimalPad)
+                .multilineTextAlignment(.trailing)
+                .frame(maxWidth: 120)
+            Text(unit).foregroundStyle(.secondary)
         }
     }
 
