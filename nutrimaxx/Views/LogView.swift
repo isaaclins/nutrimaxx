@@ -9,6 +9,8 @@ struct LogView: View {
     @State private var showScanner = false
     @State private var scannedProduct: FoodProduct?
     @State private var scanError: String?
+    @State private var showAddMealChooser = false
+    @State private var showScanMealChooser = false
 
     var body: some View {
         NavigationStack {
@@ -52,15 +54,30 @@ struct LogView: View {
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     Button {
-                        addMeal = .breakfast
-                        showAddFood = true
+                        showAddMealChooser = true
                     } label: {
                         Image(systemName: "plus")
                     }
                     Button {
-                        showScanner = true
+                        showScanMealChooser = true
                     } label: {
                         Image(systemName: "barcode.viewfinder")
+                    }
+                }
+            }
+            .confirmationDialog("Add to which meal?", isPresented: $showAddMealChooser, titleVisibility: .visible) {
+                ForEach(MealType.allCases) { meal in
+                    Button(meal.rawValue.capitalized) {
+                        addMeal = meal
+                        showAddFood = true
+                    }
+                }
+            }
+            .confirmationDialog("Scan into which meal?", isPresented: $showScanMealChooser, titleVisibility: .visible) {
+                ForEach(MealType.allCases) { meal in
+                    Button(meal.rawValue.capitalized) {
+                        addMeal = meal
+                        showScanner = true
                     }
                 }
             }
